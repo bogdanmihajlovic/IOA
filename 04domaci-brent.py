@@ -1,85 +1,94 @@
-from time import time
-import matplotlib.pyplot as plt
+import math
+import random
+
 import numpy as np
+import matplotlib.pyplot as plt
 
-def funkcija(n,beta,teta,d,delta):
-   sum = 0.0
-   fi = delta + beta*d*np.cos(teta)
-   for k in range(n):
-       sum+= np.exp(-1j*k*fi)
-   return abs(sum)
-
-def brent(p1,p2,n,beta,teta,d):
-
-   x1 = p1 + (p2 - p1) * np.random.rand()
-   x2 = p1 + (p2 - p1) * np.random.rand()
-   x3 = p1 + (p2 - p1) * np.random.rand()
-
-   #print(x1,x2,x3)
+N = 6
+BETA = 20*math.pi
+DOTS = 100
+MINIMUM_BREAK = 1e-8
 
 
-   start_time = time()
-
-   f1 = - funkcija(n, beta, teta, d, x1)
-   f2 = - funkcija(n, beta, teta, d, x2)
-   f3 = - funkcija(n, beta, teta, d, x3)
-   xmax = 999999999
-   last = 0
-
-   while abs(xmax-last) > 1e-7:
-
-       last = xmax
-       lista = [f1, f2, f3]
-       niz = np.array(lista)
-       matrica = np.array([[x1 ** 2, x1, 1], [x2 ** 2, x2, 1], [x3 ** 2, x3, 1]])
-       transponovana = np.linalg.inv(matrica)
-       proizvod = np.dot(transponovana, niz)
-
-       a = proizvod[0]
-       b = proizvod[1]
-
-       if (a != 0):
-           xmax = -b / (2.0 * a)
-           fmax = -funkcija(n, beta, teta, d, xmax)
-
-       tacke = np.array([x1, x2, x3, xmax])
-
-       funkcije = np.array([f1, f2, f3, fmax])
-
-       sortiran_niz = np.argsort(funkcije)
-
-       x1 = tacke[sortiran_niz[0]]
-       x2 = tacke[sortiran_niz[1]]
-       x3 = tacke[sortiran_niz[2]]
-
-       f1 = funkcije[sortiran_niz[0]]
-       f2 = funkcije[sortiran_niz[1]]
-       f3 = funkcije[sortiran_niz[2]]
-
-       end_time = time()
-
-       if end_time - start_time > 3:
-           return [x1, abs(f1)]
+def F(n, beta, theta, d, delta):
+    phi = delta + beta*d*math.cos(theta)
+    j = complex("0+1j")
+    suma = 0
+    for k in range(0, n):
+        suma += pow(math.e, -j*k*phi)
+    return suma
 
 
-   return [x1, abs(f1)]
+def randomIndex(rangeDots):
+    i1 = int(random.random() * rangeDots)
+    i2 = int(random.random() * rangeDots)
+    i3 = int(random.random() * rangeDots)
 
-n = 6
-beta = 20*np.pi
-teta = np.pi/3
-d = 1/20
-delta = np.arange(0,2*np.pi,0.01)
-grafik = funkcija(n,beta,teta,d,delta)
-plt.figure()
-plt.plot(delta,abs(grafik))
-plt.xlabel('delta')
-plt.ylabel('|Fs(delta)|')
-plt.grid()
-plt.savefig('grafik.png', bbox_inches='tight')
-plt.show()
+    while i2 == i3:
+        i2 = int(random.random() * DOTS)
+
+    while i3 == i1 or i3 == i2:
+        i3 = int(random.random() * DOTS)
+
+    return i1, i2, i3
 
 
+def showGraph(x, y, xlabel, ylabel):
+    fig = plt.figure()
+    plt.plot(x, y)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.show()
 
-s = brent(4.1, 5.6, n, beta, teta, d)
-print('delta = ', s[0])
-print('|Fs(delta)| = ', s[1])
+
+def findMaximum(y):
+    fMaximum = max(y)
+
+    deltas = np.arange(4, 5.5, (5.5 - 4)/1000)
+    index1, index2, index3 = randomIndex(1000)
+
+    delta1 = deltas[index1]
+    delta2 = deltas[index2]
+    delta3 = deltas[index3]
+
+    while True:
+        f1 = abs(F(N, BETA, math.pi / 3, 1.0 / 20, delta1))
+        f2 = abs(F(N, BETA, math.pi / 3, 1.0 / 20, delta2))
+        f3 = abs(F(N, BETA, math.pi / 3, 1.0 / 20, delta3))
+
+        matrix = np.linalg.inv(np.array([[delta1*delta1, delta1, 1], [delta2*delta2, delta2, 1], [delta3*delta3, delta3, 1]]))
+        fs = [[f1], [f2], [f3]]
+        consts = np.dot(matrix, np.array(fs))
+
+        a = consts[0][0]
+        b = consts[1][0]
+
+        deltaMaximum = -b / (2*a)
+        fLocalMaximum = abs(F(N, BETA, math.pi / 3, 1.0 / 20, deltaMaximum))
+
+        if abs(fMaximum - fLocalMaximum) < MINIMUM_BREAK:
+            break
+
+        fMin = min(f1, f2, f3, fLocalMaximum)
+        if f1 == fMin:
+            delta1 = deltaMaximum
+        elif f2 == fMin:
+            delta2 = deltaMaximum
+        elif f3 == fMin:
+            delta3 = deltaMaximum
+
+    return fMaximum, fLocalMaximum, deltaMaximum
+
+
+def main():
+
+    deltas = np.arange(0, 2 * math.pi, 2 * math.pi / DOTS)
+    f = [abs(F(N, BETA, math.pi/3, 1.0/20, delta)) for delta in deltas]
+
+    showGraph(deltas, f, "delta", "|F|")
+    actualMax, myMax, deltaMax = findMaximum(f)
+
+    print(f'Actual maximum {actualMax}\nMaximum I found {myMax}\nDelta {deltaMax}')
+
+if __name__ == "__main__":
+    main()
